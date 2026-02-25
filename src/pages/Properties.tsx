@@ -12,12 +12,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PropertyDetailSheet } from "@/components/PropertyDetailSheet";
 import {
   Search,
   Plus,
   MapPin,
   BedDouble,
   Maximize,
+  ChevronRight,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
 } from "lucide-react";
 
 const categoryColors: Record<string, string> = {
@@ -33,17 +38,46 @@ const statusColors: Record<string, string> = {
   rented: "bg-info/10 text-info",
 };
 
+const approvalStatusIcons: Record<string, React.ReactNode> = {
+  approved: <CheckCircle className="w-3 h-3" />,
+  pending: <AlertCircle className="w-3 h-3" />,
+  rejected: <XCircle className="w-3 h-3" />,
+};
+
+const approvalStatusColors: Record<string, string> = {
+  approved: "bg-success/10 text-success",
+  pending: "bg-warning/10 text-warning",
+  rejected: "bg-destructive/10 text-destructive",
+};
+
 export default function Properties() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "rental" | "sale" | "luxury">("all");
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
+  const [properties, setProperties] = useState(dummyProperties);
 
-  const filtered = dummyProperties.filter((p) => {
+  const filtered = properties.filter((p) => {
     const matchSearch =
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.location.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === "all" || p.category === filter;
     return matchSearch && matchFilter;
   });
+
+  const handlePropertySelect = (property: Property) => {
+    setSelectedProperty(property);
+    setIsDetailSheetOpen(true);
+  };
+
+  const handlePropertyUpdated = (updatedProperty: Property) => {
+    setProperties(
+      properties.map((p) =>
+        p.id === updatedProperty.id ? updatedProperty : p
+      )
+    );
+    setSelectedProperty(updatedProperty);
+  };
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -53,7 +87,7 @@ export default function Properties() {
             Properties
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {dummyProperties.length} total properties across all categories
+            {properties.length} total properties across all categories
           </p>
         </div>
         <Button className="gap-2">
@@ -101,11 +135,17 @@ export default function Properties() {
                 <TableHead className="hidden lg:table-cell">Agent</TableHead>
                 <TableHead className="hidden lg:table-cell">Portals</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Approval</TableHead>
+                <TableHead className="w-8"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((property) => (
-                <TableRow key={property.id} className="cursor-pointer hover:bg-muted/50">
+                <TableRow
+                  key={property.id}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => handlePropertySelect(property)}
+                >
                   <TableCell>
                     <div>
                       <p className="font-medium text-sm">{property.title}</p>
@@ -155,12 +195,38 @@ export default function Properties() {
                       {property.status}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={approvalStatusColors[property.approvalStatus] + " text-[10px] gap-1"}
+                    >
+                      <span className="flex items-center gap-1">
+                        {approvalStatusIcons[property.approvalStatus]}
+                        {property.approvalStatus === "approved"
+                          ? "Approved"
+                          : property.approvalStatus === "pending"
+                            ? "Pending"
+                            : "Rejected"}
+                      </span>
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Property Detail Sheet */}
+      <PropertyDetailSheet
+        property={selectedProperty}
+        open={isDetailSheetOpen}
+        onOpenChange={setIsDetailSheetOpen}
+        onPropertyUpdated={handlePropertyUpdated}
+      />
     </div>
   );
 }
