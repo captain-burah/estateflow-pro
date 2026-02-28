@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Property } from '@/types';
+import { PropertyPortalEnhancementForm } from './PropertyPortalEnhancementForm';
 import {
   Form,
   FormControl,
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PropertyEditFormProps {
@@ -28,6 +29,7 @@ interface PropertyEditFormProps {
   onSubmitForApproval: () => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
+  onPropertyUpdated?: (property: Property) => void;
 }
 
 export function PropertyEditForm({
@@ -36,25 +38,29 @@ export function PropertyEditForm({
   onSubmitForApproval,
   onCancel,
   isLoading = false,
+  onPropertyUpdated,
 }: PropertyEditFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [enhancementDialogOpen, setEnhancementDialogOpen] = useState(false);
+  const [currentProperty, setCurrentProperty] = useState(property);
 
   const form = useForm<Partial<Property>>({
     defaultValues: {
-      title: property.title,
-      description: property.description || '',
-      price: property.price,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      area: property.area,
-      status: property.status,
-      category: property.category,
-      location: property.location,
+      title: currentProperty.title,
+      description: currentProperty.description || '',
+      price: currentProperty.price,
+      bedrooms: currentProperty.bedrooms,
+      bathrooms: currentProperty.bathrooms,
+      area: currentProperty.area,
+      status: currentProperty.status,
+      category: currentProperty.category,
+      location: currentProperty.location,
     },
   });
 
-  const hasPendingChanges = property.pendingChanges && Object.keys(property.pendingChanges).length > 0;
+  const hasPendingChanges = currentProperty.pendingChanges && Object.keys(currentProperty.pendingChanges).length > 0;
+  const needsPortalEnhancement = currentProperty.publishedPortals && currentProperty.publishedPortals.length > 0 && !currentProperty.isPortalEnhanced;
 
   const handleSaveDraft = async (values: Partial<Property>) => {
     try {
@@ -80,12 +86,43 @@ export function PropertyEditForm({
     }
   };
 
+  const handleEnhancementComplete = (updatedProperty: Property) => {
+    setCurrentProperty(updatedProperty);
+    onPropertyUpdated?.(updatedProperty);
+  };
+
   return (
     <div className="space-y-6">
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {needsPortalEnhancement && (
+        <Alert variant="destructive" className="border-amber-400 bg-amber-50 text-amber-800">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-700">
+            This property is published to portals but hasn't been enhanced yet. 
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => setEnhancementDialogOpen(true)}
+              className="ml-2 text-amber-700 underline hover:bg-amber-100"
+            >
+              Enhance now
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {currentProperty.isPortalEnhanced && (
+        <Alert className="border-green-200 bg-green-50 text-green-800">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-700">
+            ✓ This property is enhanced and ready for portal publishing.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -304,6 +341,14 @@ export function PropertyEditForm({
           </div>
         </form>
       </Form>
+
+      {/* Portal Enhancement Dialog */}
+      <PropertyPortalEnhancementForm
+        property={currentProperty}
+        isOpen={enhancementDialogOpen}
+        onOpenChange={setEnhancementDialogOpen}
+        onEnhancementComplete={handleEnhancementComplete}
+      />
     </div>
   );
 }
